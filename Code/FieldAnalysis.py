@@ -1,6 +1,10 @@
 from astropy.io import fits
 from astropy.wcs import WCS
 import numpy as np
+from dotenv import load_dotenv
+import os
+load_dotenv()
+PIXEL_SCALE = float(os.getenv("PIXEL_SCALE")) # [deg/px]
 
 def _get_wcs(hdul):
     """
@@ -14,24 +18,23 @@ def get_image_area_physical(hdul):
     """
     Gets the physical area of the image in square degrees.
     """
-    wcs = _get_wcs(hdul)
+    pixel_size = PIXEL_SCALE # [deg/px]
     imageshape = hdul[0].data.shape
-    pixelarea = wcs.pixel_scale_matrix[1,1] * wcs.pixel_scale_matrix[0,0]
+    pixelarea = pixel_size**2
     imagearea = pixelarea * imageshape[0] * imageshape[1]
     return imagearea
 
-def get_pixel_scale(hdul):
-    return _get_wcs(hdul).pixel_scale_matrix[1,1]
+def get_pixel_scale():
+    return PIXEL_SCALE  # [deg/px]
 
 def deg_to_px(hdul,deg):
-    return deg / get_pixel_scale(hdul)
+    return deg / get_pixel_scale()
 
 def get_diagonal_distance(hdul):
     """
     Gets the diagonal distance of the image in degrees.
     """
-    wcs = _get_wcs(hdul)
     diagonal_px = np.sqrt(hdul[0].data.shape[0]**2 + hdul[0].data.shape[1]**2)
-    diagonal_phys = diagonal_px * wcs.pixel_scale_matrix[1,1] # Assuming square pixels for simplicity
+    diagonal_phys = diagonal_px * PIXEL_SCALE # Assuming square pixels for simplicity
     return diagonal_phys
     

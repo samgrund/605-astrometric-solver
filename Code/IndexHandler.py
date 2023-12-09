@@ -38,10 +38,14 @@ def _relevant_cache(ra,dec):
     filenames = [os.path.basename(entry) for entry in cache_entries]
     ras = [float(filename.split('_')[0]) for filename in filenames]
     decs = [float(filename.split('_')[1]) for filename in filenames]
+    fd = [float(filename.split('_')[2][2:]) for filename in filenames]
     
+    print("Checking cache entries ...",)
     for i in range(len(ras)):
-        if np.sqrt((ras[i] - ra)**2 + (decs[i] - dec)**2) < RADIAL_TOLERANCE:
+        if (np.sqrt((ras[i] - ra)**2 + (decs[i] - dec)**2) < RADIAL_TOLERANCE) and (fd[i] == FIELD_DENSITY):
+            print(f"Found relevant cache entry: {cache_entries[i]}.")
             return cache_entries[i]
+    print("No relevant cache entry found.")
     return None
 
 def _load_cache(filename):
@@ -79,27 +83,6 @@ def _get_stars_GAIA(hdul,ra,dec):
         results = job.get_results()
         print("Done.")
         return results
-    
-    
-    #if _check_cache(ra,dec):
-    #    print("Using cached GAIA results.")
-    #    return _load_cache(potential_name)
-    #else:
-    #    print("Querying GAIA DR2 ...")
-    #    # Build the query
-    #    query = """SELECT TOP {}
-    #            source_id, ra, dec, phot_g_mean_flux
-    #            FROM gaiadr2.gaia_source
-    #            WHERE CONTAINS(POINT('ICRS', gaiadr2.gaia_source.ra, gaiadr2.#gaia_source.dec),
-    #            CIRCLE('ICRS', {}, {}, {}))=1
-    #            ORDER BY phot_g_mean_mag ASC""".format(n_stars,ra, dec, #search_radius)
-    #    
-    #    job = Gaia.launch_job_async(query,
-    #                            dump_to_file=True,output_format='votable',
-    #                            output_file=potential_name,verbose=False)
-    #    results = job.get_results()
-    #    print("Done.")
-    #    return results
 
 
 def get_index(hdul,ra,dec):

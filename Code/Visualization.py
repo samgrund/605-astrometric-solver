@@ -10,8 +10,12 @@ def compare_hashes(local_hash,gaia_hash):
     """
     Visually compares two hashes.
     """
-    coords_1 = [(0,0),(local_hash['xc'],local_hash['yc']),(local_hash['xd'],local_hash['yd']),(1,1)]
-    coords_2 = [(0,0),(gaia_hash['xc'],gaia_hash['yc']),(gaia_hash['xd'],gaia_hash['yd']),(1,1)]
+    coords_1 = [(0,0),(local_hash['xc'],local_hash['yc']),(local_hash['xd'],local_hash['yd']),(local_hash['xb'],local_hash['yb'])]
+    coords_2 = [(0,0),(gaia_hash['xc'],gaia_hash['yc']),(gaia_hash['xd'],gaia_hash['yd']), (gaia_hash['xb'],gaia_hash['yb'])]
+    
+    max_x = max([local_hash['xc'],local_hash['xd'],local_hash['xb'],gaia_hash['xc'],gaia_hash['xd'],gaia_hash['xb']])
+    max_y = max([local_hash['yc'],local_hash['yd'],local_hash['yb'],gaia_hash['yc'],gaia_hash['yd'],gaia_hash['yb']])
+    max_coord = max(max_x,max_y)
     
     gaia_idx = gaia_hash['index']
     local_idx = local_hash['index']
@@ -21,14 +25,16 @@ def compare_hashes(local_hash,gaia_hash):
         
     fig,ax = plt.subplots(figsize=(5,5),tight_layout=True)
     ax.set_xlabel('x')
+    ax.set_ylim(0 - max_coord*0.1,max_coord*1.1)
+    ax.set_xlim(0-max_coord*0.1,max_coord*1.1)
     ax.set_ylabel('y')
-    ax.scatter([0,local_hash['xc'],local_hash['xd'],1],[0,local_hash['yc'],local_hash['yd'],1],color='r',label=f'Local hash ({local_idx})')
-    ax.scatter([0,gaia_hash['xc'],gaia_hash['xd'],1],[0,gaia_hash['yc'],gaia_hash['yd'],1],color='b',label=f'GAIA hash ({gaia_idx})')
-    
     ax.legend()
-
-    ax.add_patch(plt.Polygon(coords_1,closed=True,fill=False,linewidth=1.5, alpha=.8, color='r'))
-    ax.add_patch(plt.Polygon(coords_2,closed=True,fill=False,linewidth=1.5, alpha=.8,color='b'))
+    ax.scatter([0,local_hash['xc'],local_hash['xd'],local_hash['xb']],[0,local_hash['yc'],local_hash['yd'],local_hash['yb']],color='r',label='LOCAL')
+    ax.scatter([0,gaia_hash['xc'],gaia_hash['xd'],gaia_hash['xb']],[0,gaia_hash['yc'],gaia_hash['yd'],gaia_hash['yb']],color='b',label='GAIA')
+    
+    ax.add_patch(plt.Polygon(coords_1,fill=False,color='r'))
+    ax.add_patch(plt.Polygon(coords_2,fill=False,color='b'))
+    
     plt.show()
 
 def plot_stellar(image,skycoords=False,stretch=True,vlims=[1,99],dpi=300,cmap='gray_r'):

@@ -2,6 +2,16 @@ import math
 import matplotlib.pyplot as plt
 import numpy as np
 from astropy.table import QTable
+from astropy.coordinates import SkyCoord
+from astropy.wcs.utils import fit_wcs_from_points
+import astropy.units as u
+
+
+# Parameters
+from dotenv import load_dotenv
+import os
+load_dotenv()
+PIXEL_SCALE = float(os.getenv("PIXEL_SCALE")) # [deg/px]
 
 def orientation(p, q, r):
     """
@@ -48,62 +58,13 @@ def generate_high_visibility_colors(num_colors):
 
     return colors
 
-from astropy.wcs import WCS
-from astropy.io import fits
-import numpy as np
+def create_wcs(local_asterism,gaia_asterism):
+    local_xs = np.array([local_asterism['xa'],local_asterism['xc'], local_asterism['xd'], local_asterism['xb']])
+    local_ys = np.array([local_asterism['ya'],local_asterism['yc'], local_asterism['yd'], local_asterism['yb']])
 
-def create_wcs(pixel_coords, sky_coords):
-    # Calculate rotation angle
-    delta_x = pixel_coords[1][0] - pixel_coords[0][0]
-    delta_y = pixel_coords[1][1] - pixel_coords[0][1]
-    delta_ra = sky_coords[1][0] - sky_coords[0][0]
-    delta_dec = sky_coords[1][1] - sky_coords[0][1]
-
-    rotation_angle = np.degrees(np.arctan2(delta_y * delta_ra - delta_x * delta_dec, delta_x * delta_ra + delta_y * delta_dec))
-
-    # Calculate physical distance covered by the image along each axis
-    delta_ra = abs(sky_coords[1][0] - sky_coords[0][0])
-    delta_dec = abs(sky_coords[1][1] - sky_coords[0][1])
-
-    # Calculate pixel scale (CDELT) along each axis
-    delta_x = abs(pixel_coords[1][0] - pixel_coords[0][0])
-    delta_y = abs(pixel_coords[1][1] - pixel_coords[0][1])
-
-    cdelt_x = delta_ra / delta_x
-    cdelt_y = delta_dec / delta_y
-
-    # Create a FITS header
-    hdr = fits.Header()
-
-    # Add necessary WCS keywords based on the provided coordinates
-    hdr['CTYPE1'] = 'RA---TAN'  # Coordinate type for axis 1 (example: Right Ascension)
-    hdr['CTYPE2'] = 'DEC--TAN'  # Coordinate type for axis 2 (example: Declination)
-
-    hdr['CRVAL1'] = sky_coords[0][0]  # Reference value for RA
-    hdr['CRVAL2'] = sky_coords[0][1]  # Reference value for DEC
-
-    hdr['CRPIX1'] = pixel_coords[0][0]  # Reference pixel for axis 1
-    hdr['CRPIX2'] = pixel_coords[0][1]  # Reference pixel for axis 2
-
-    hdr['CUNIT1'] = 'deg'  # Units for axis 1 (degrees)
-    hdr['CUNIT2'] = 'deg'  # Units for axis 2 (degrees)
-
-    hdr['CDELT1'] = cdelt_x  # Pixel scale for axis 1
-    hdr['CDELT2'] = cdelt_y  # Pixel scale for axis 2
-
-    # Include rotation angle information
-    rotation_matrix = np.array([[np.cos(np.radians(rotation_angle)), -np.sin(np.radians(rotation_angle))],
-                                [np.sin(np.radians(rotation_angle)), np.cos(np.radians(rotation_angle))]])
-
-
-    hdr['PC1_1'] = rotation_matrix[0, 0]
-    hdr['PC1_2'] = rotation_matrix[0, 1]
-    hdr['PC2_1'] = rotation_matrix[1, 0]
-    hdr['PC2_2'] = rotation_matrix[1, 1]
-
-    # Create a WCS object using the FITS header
-    wcs = WCS(hdr)
-    
+    gaia_xys = np.array([(gaia_asterism['xa'],gaia_asterism['ya']),(gaia_asterism['xc'],gaia_asterism['yc']),(gaia_asterism['xd'],gaia_asterism['yd']),(gaia_asterism['xb'],gaia_asterism['yb'])])
+    gaia_skycoords = SkyCoord(ra=gaia_xys[:,0]*u.deg,dec=gaia_xys[:,1]*u.deg)
+    wcs = fit_wcs_from_points((local_xs,local_ys),gaia_skycoords)
     return wcs
 
 def local_asterism_to_coords(asterism):

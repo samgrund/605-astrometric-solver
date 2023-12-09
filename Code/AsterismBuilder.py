@@ -17,6 +17,7 @@ import os
 load_dotenv()
 ASTERISM_SIZE = int(os.getenv("ASTERISM_SIZE"))
 FIELD_DENSITY = float(os.getenv("FIELD_DENSITY"))
+PIXEL_SCALE = float(os.getenv("PIXEL_SCALE")) # [deg/px]
 
 def _get_brightest_stars(hdul):
     """
@@ -72,9 +73,7 @@ def _get_asterisms_GAIA(stars):
             chosen_stars.add_column(distances_chosen,name='distances')
             chosen_stars.sort('distances')
             table.add_row([star['ra'],star['dec'],chosen_stars['ra'][0],chosen_stars['dec'][0],chosen_stars['ra'][1],chosen_stars['dec'][1],chosen_star['ra'],chosen_star['dec'],chosen_stars['distances'][0],chosen_stars['distances'][1],distance_furthest])
-
     return table
-
 
 def _get_asterisms_image(stars):
     """
@@ -118,39 +117,61 @@ def _get_asterisms_image(stars):
 
     return table
 
-def _asterisms_to_geometric_hash(asterisms):
+def _asterisms_to_geometric_hash(asterisms,coords='image'):
     """
     Converts asterisms to a geometric hash.
     Returns a QTable where each row is an asterism and the columns are the geometric hash components.
     """
     # Define output table
-    table = QTable(names=('xc','yc','xd','yd'),dtype=('float','float','float','float'))
+    table = QTable(names=('xa','ya','xc','yc','xd','yd','xb','yb','rc','rd','rb'),dtype=('float','float','float','float','float','float','float','float', 'float','float','float'))
     asterism_output_table = QTable(names=('xa','ya','xc','yc','xd','yd','xb','yb','rc','rd','rb'),dtype=('float','float','float','float','float','float','float','float', 'float','float','float'))
     # Let's do some vector math
     for asterism in asterisms:
+            
         AB = np.array([asterism['xb'] - asterism['xa'],asterism['yb'] - asterism['ya']])
         AC = np.array([asterism['xc'] - asterism['xa'],asterism['yc'] - asterism['ya']])
         AD = np.array([asterism['xd'] - asterism['xa'],asterism['yd'] - asterism['ya']])
         AA = np.array([asterism['xa'] - asterism['xa'],asterism['ya'] - asterism['ya']])
-        # Rotate AB 45 degrees clockwise to form x axis
-        y = np.array([AB[0]*np.cos(np.pi/4) - AB[1]*np.sin(np.pi/4),AB[0]*np.sin(np.pi/4) + AB[1]*np.cos(np.pi/4)])
-        # Rotate AB 45 degrees counter-clockwise to form y axis
-        x = np.array([AB[0]*np.cos(-np.pi/4) - AB[1]*np.sin(-np.pi/4),AB[0]*np.sin(-np.pi/4) + AB[1]*np.cos(-np.pi/4)])
-
-        # Project the stars onto the x and y axis
-        xb = np.dot(AB,x)
-        yb = np.dot(AB,y)
-        xc = np.dot(AC,x)/xb
-        yc = np.dot(AC,y)/yb
-        xd = np.dot(AD,x)/xb
-        yd = np.dot(AD,y)/yb
         
-        # Check if all coordinates are positive and less than 1
-        if (xc < 0 or yc < 0 or xd < 0 or yd < 0) or (xc > 1 or yc > 1 or xd > 1 or yd > 1):
-            continue
-        else:
-            table.add_row([xc,yc,xd,yd])
-            asterism_output_table.add_row(asterism)
+        if coords == 'image':
+            AB *= PIXEL_SCALE
+            AC *= PIXEL_SCALE
+            AD *= PIXEL_SCALE
+            AA *= PIXEL_SCALE
+            
+        AB_length = np.linalg.norm(AB)
+        
+        # Rotate AB 45 degrees clockwise to form x axis
+        x = np.array([AB[0]*np.cos(np.pi/4) - AB[1]*np.sin(np.pi/4),AB[0]*np.sin(np.pi/4) + AB[1]*np.cos(np.pi/4)])/np.sqrt(2)
+        
+        # Rotate AB 45 degrees counter-clockwise to form y axis
+        y = np.array([AB[0]*np.cos(-np.pi/4) - AB[1]*np.sin(-np.pi/4),AB[0]*np.sin(-np.pi/4) + AB[1]*np.cos(-np.pi/4)])/np.sqrt(2)
+        
+        # Project the stars onto the x and y axis
+        xa = np.dot(AA,x)/np.linalg.norm(x)
+        ya = np.dot(AA,y)/np.linalg.norm(y)
+        xb = np.dot(AB,x)/np.linalg.norm(x)
+        yb = np.dot(AB,y)/np.linalg.norm(y)
+        xc = np.dot(AC,x)/np.linalg.norm(x)
+        yc = np.dot(AC,y)/np.linalg.norm(y)
+        xd = np.dot(AD,x)/np.linalg.norm(x)
+        yd = np.dot(AD,y)/np.linalg.norm(y)
+        
+        # Calculate the distances between the stars
+        rc = np.linalg.norm(np.array([xc,yc]))
+        rd = np.linalg.norm(np.array([xd,yd]))
+        rb = np.linalg.norm(np.array([xb,yb]))
+
+        # New, non-normalized version
+        #if (xc > AB_length or yc > AB_length or xd > AB_length or yd > AB_length) or (xc < 0 or yc < 0 or xd < 0 or yd < 0):
+        #    continue
+        #else:
+            #print(f"Found asterism of radius {AB_length:.2e} [deg]")
+        #    table.add_row([xa,ya,xc,yc,xd,yd,xb,yb,rc, rd, rb])
+        #    asterism_output_table.add_row(asterism)
+        
+        table.add_row([xa,ya,xc,yc,xd,yd,xb,yb,rc, rd, rb])
+        asterism_output_table.add_row(asterism)
     
     return table, asterism_output_table
     
@@ -203,7 +224,6 @@ def plot_asterisms(hdul,asterisms,stars):
     for (asterism,color) in zip(sorted_coords,generated_colors):
         ax.add_patch(plt.Polygon(asterism,closed=True,fill=False,color=color,linewidth=1, alpha=0.5))
     
-
 def _add_index_to_table(table):
     table.add_column(np.arange(len(table)),name='index')
     table.add_index('index')
@@ -214,12 +234,11 @@ def build_asterisms_from_GAIA(stars,visualize=False):
     Builds asterisms from GAIA stars around a coordinate.
     """
     asterisms = _get_asterisms_GAIA(stars)
-    hashes,asterisms = _asterisms_to_geometric_hash(asterisms)
+    hashes,asterisms = _asterisms_to_geometric_hash(asterisms,coords='radec')
     hashes, asterisms = _add_index_to_table(hashes), _add_index_to_table(asterisms)
     if visualize:
         plot_asterisms_GAIA(asterisms,stars)
     return asterisms,hashes
-
 
 def build_asterisms_from_input_image(hdul,visualize=False):
     """
@@ -227,7 +246,7 @@ def build_asterisms_from_input_image(hdul,visualize=False):
     """
     stars = _get_brightest_stars(hdul)
     asterisms = _get_asterisms_image(stars)
-    hashes,asterisms = _asterisms_to_geometric_hash(asterisms)
+    hashes,asterisms = _asterisms_to_geometric_hash(asterisms,coords='image')
     hashes, asterisms = _add_index_to_table(hashes), _add_index_to_table(asterisms)
     if visualize:
         plot_asterisms(hdul,asterisms,stars)
