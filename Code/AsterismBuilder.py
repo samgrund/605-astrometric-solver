@@ -142,10 +142,10 @@ def _asterisms_to_geometric_hash(asterisms,coords='image'):
         AB_length = np.linalg.norm(AB)
         
         # Rotate AB 45 degrees clockwise to form x axis
-        x = np.array([AB[0]*np.cos(np.pi/4) - AB[1]*np.sin(np.pi/4),AB[0]*np.sin(np.pi/4) + AB[1]*np.cos(np.pi/4)])/np.sqrt(2)
+        y = np.array([AB[0]*np.cos(np.pi/4) - AB[1]*np.sin(np.pi/4),AB[0]*np.sin(np.pi/4) + AB[1]*np.cos(np.pi/4)])/np.sqrt(2)
         
         # Rotate AB 45 degrees counter-clockwise to form y axis
-        y = np.array([AB[0]*np.cos(-np.pi/4) - AB[1]*np.sin(-np.pi/4),AB[0]*np.sin(-np.pi/4) + AB[1]*np.cos(-np.pi/4)])/np.sqrt(2)
+        x = np.array([AB[0]*np.cos(-np.pi/4) - AB[1]*np.sin(-np.pi/4),AB[0]*np.sin(-np.pi/4) + AB[1]*np.cos(-np.pi/4)])/np.sqrt(2)
         
         # Project the stars onto the x and y axis
         xa = np.dot(AA,x)/np.linalg.norm(x)
@@ -200,6 +200,8 @@ def plot_asterisms_GAIA(asterisms,stars):
 
     for (asterism,color) in zip(sorted_coords,generated_colors):
         ax.add_patch(plt.Polygon(asterism,closed=True,fill=False,color=color,linewidth=1.5, alpha=.8))
+        
+    return fig,ax
 
 def plot_asterisms(hdul,asterisms,stars):
     """
@@ -222,7 +224,9 @@ def plot_asterisms(hdul,asterisms,stars):
     generated_colors = generate_high_visibility_colors(num_asterisms)
     
     for (asterism,color) in zip(sorted_coords,generated_colors):
-        ax.add_patch(plt.Polygon(asterism,closed=True,fill=False,color=color,linewidth=1, alpha=0.5))
+        ax.add_patch(plt.Polygon(asterism,closed=True,fill=False,color=color,linewidth=1.5, alpha=0.5))
+    
+    return fig,ax
     
 def _add_index_to_table(table):
     table.add_column(np.arange(len(table)),name='index')
@@ -236,9 +240,10 @@ def build_asterisms_from_GAIA(stars,visualize=False):
     asterisms = _get_asterisms_GAIA(stars)
     hashes,asterisms = _asterisms_to_geometric_hash(asterisms,coords='radec')
     hashes, asterisms = _add_index_to_table(hashes), _add_index_to_table(asterisms)
+    fig,ax = None,None
     if visualize:
-        plot_asterisms_GAIA(asterisms,stars)
-    return asterisms,hashes
+        fig,ax = plot_asterisms_GAIA(asterisms,stars)
+    return asterisms,hashes,fig,ax
 
 def build_asterisms_from_input_image(hdul,visualize=False):
     """
@@ -248,6 +253,8 @@ def build_asterisms_from_input_image(hdul,visualize=False):
     asterisms = _get_asterisms_image(stars)
     hashes,asterisms = _asterisms_to_geometric_hash(asterisms,coords='image')
     hashes, asterisms = _add_index_to_table(hashes), _add_index_to_table(asterisms)
+    
+    fig,ax = None,None
     if visualize:
-        plot_asterisms(hdul,asterisms,stars)
-    return asterisms,hashes    
+        fig,ax = plot_asterisms(hdul,asterisms,stars)
+    return asterisms,hashes,fig,ax    

@@ -160,13 +160,14 @@ def _fit_gaussians(image,groups,centroids):
     
     # Filter out stars with FWHM outside of the range
     median_fwhm = np.median(output['fwhm'])
+    median_std = median_fwhm/2.355
     std_fwhm = np.std(output['fwhm'])
     output = output[(output['fwhm'] > median_fwhm - n_sigma_fwhm*std_fwhm) & (output['fwhm'] < median_fwhm + n_sigma_fwhm*std_fwhm)]
     
     # Also remove negative fwhms
     output = output[output['fwhm'] > 0]
     
-    return output
+    return output, median_std
     
 def _aperture_photometry(image,gaussians):
     """
@@ -187,7 +188,7 @@ def _fix_QTable(table):
     table = table['id','x','y','amplitude','x_stddev','y_stddev','fwhm','flux']
     return table
 
-def extract_stars(image):
+def extract_stars(image,return_std=False):
     """
     Extracts stars from an image.
     """
@@ -195,8 +196,10 @@ def extract_stars(image):
     peaks = _find_peaks(image)
     groups = _group_peaks(image,peaks)
     centroids = _get_centroids(image,groups)
-    gaussians = _fit_gaussians(image,groups,centroids)
+    gaussians, std  = _fit_gaussians(image,groups,centroids)
     stars = _aperture_photometry(image,gaussians)
     stars = _fix_QTable(stars)
+    if return_std:
+        return stars, std
     return stars
     
